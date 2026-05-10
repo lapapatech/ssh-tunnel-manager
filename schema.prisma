@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tunnel {
+  id             String   @id @default(cuid())
+  name           String
+  type           String   // "local" | "remote" | "dynamic"
+  status         String   @default("stopped") // "stopped" | "starting" | "active" | "error"
+  
+  // SSH Connection
+  sshHost        String
+  sshPort        Int      @default(22)
+  sshUser        String
+  sshKeyPath     String?  // Path to private key
+  sshPassword    String?  // Password auth (stored encrypted in real app)
+  
+  // Local port forwarding: localBindAddr:localPort -> remoteAddr:remotePort via SSH
+  // Remote port forwarding: remoteBindAddr:remotePort -> localAddr:localPort via SSH
+  // Dynamic: localBindAddr:localPort -> SOCKS proxy via SSH
+  localBindAddr  String   @default("127.0.0.1")
+  localPort      Int
+  remoteBindAddr String?  // For local/remote forwarding
+  remotePort     Int?     // For local/remote forwarding
+  
+  // Status info
+  pid            Int?
+  errorMessage   String?
+  startedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
