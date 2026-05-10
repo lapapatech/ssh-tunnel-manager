@@ -115,7 +115,18 @@ function TunnelCard({ tunnel }: { tunnel: Tunnel }) {
 
   const handleCopyCommand = () => {
     const cmd = getTunnelCommand(tunnel)
-    navigator.clipboard.writeText(cmd)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(cmd)
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = cmd
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
     toast.success(t('toasts').commandCopied)
   }
 

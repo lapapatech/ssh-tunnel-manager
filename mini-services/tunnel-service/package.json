@@ -2,10 +2,11 @@
   "name": "tunnel-service",
   "version": "1.0.0",
   "scripts": {
-    "dev": "bun --hot index.ts"
+    "dev": "npx tsx --watch index.ts"
   },
   "dependencies": {
     "socket.io": "^4.7.0",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "tsx": "^4.21.0"
   }
 }

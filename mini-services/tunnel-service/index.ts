@@ -3,6 +3,7 @@ import { Server } from 'socket.io'
 import { Client, ConnectConfig } from 'ssh2'
 import * as net from 'net'
 import * as fs from 'fs'
+import { spawn, ChildProcess } from 'child_process'
 
 const PORT = 3003
 
@@ -40,6 +41,7 @@ interface ActiveTunnel {
   config: TunnelConfig
   status: TunnelStatus
   sshClient: Client | null
+  sshProcess: ChildProcess | null
   localServer: net.Server | null
   connections: number
   totalBytesIn: number
@@ -142,17 +144,73 @@ function buildSSHConfig(config: TunnelConfig): ConnectConfig {
 
 function startLocalTunnel(tunnel: ActiveTunnel): void {
   const { config } = tunnel
+  const remoteAddr = config.remoteBindAddr || '127.0.0.1'
+  const remotePort = config.remotePort!
 
   const sshClient = new Client()
   tunnel.sshClient = sshClient
 
   sshClient.on('ready', () => {
-    tunnel.status = 'connected'
-    tunnel.startedAt = new Date()
-    tunnel.error = undefined
-    console.log(`[tunnel:${config.id}] SSH connected for local tunnel`)
-    io.emit('tunnel:started', { id: config.id, status: 'connected' })
-    emitStatusUpdate()
+    console.log(`[tunnel:${config.id}] SSH conectado`)
+
+    const localServer = net.createServer((socket) => {
+      tunnel.connections++
+
+      sshClient.forwardOut(
+        '127.0.0.1',
+        config.localPort,
+        remoteAddr,
+        remotePort,
+        (err, stream) => {
+          if (err) {
+            console.error(`[tunnel:${config.id}] forwardOut error:`, err.message)
+            socket.destroy()
+            tunnel.connections--
+            emitStatusUpdate()
+            return
+          }
+
+          socket.pipe(stream).pipe(socket)
+
+          let closed = false
+          const cleanup = () => {
+            if (closed) return
+            closed = true
+            tunnel.connections--
+            emitStatusUpdate()
+            try { socket.destroy() } catch {}
+            try { stream.close() } catch {}
+          }
+
+          stream.on('close', cleanup)
+          socket.on('close', cleanup)
+          socket.on('error', cleanup)
+          stream.on('error', cleanup)
+
+          emitStatusUpdate()
+        }
+      )
+    })
+
+    tunnel.localServer = localServer
+
+    localServer.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        tunnel.status = 'error'
+        tunnel.error = `Puerto ${config.localPort} ya está en uso`
+        io.emit('tunnel:error', { id: config.id, error: tunnel.error })
+        emitStatusUpdate()
+      }
+    })
+
+    localServer.listen(config.localPort, config.localBindAddr, () => {
+      tunnel.status = 'connected'
+      tunnel.startedAt = new Date()
+      tunnel.error = undefined
+      console.log(`[tunnel:${config.id}] Túnel local activo en ${config.localBindAddr}:${config.localPort} → ${remoteAddr}:${remotePort}`)
+      io.emit('tunnel:started', { id: config.id, status: 'connected' })
+      emitStatusUpdate()
+    })
   })
 
   sshClient.on('error', (err) => {
@@ -165,103 +223,15 @@ function startLocalTunnel(tunnel: ActiveTunnel): void {
 
   sshClient.on('close', () => {
     if (tunnel.status !== 'disconnecting') {
-      tunnel.status = 'disconnected'
-      tunnel.error = 'SSH connection closed unexpectedly'
-      io.emit('tunnel:error', { id: config.id, error: 'SSH connection closed unexpectedly' })
+      tunnel.status = 'error'
+      tunnel.error = 'Conexión SSH cerrada inesperadamente'
+      io.emit('tunnel:error', { id: config.id, error: tunnel.error })
     }
     emitStatusUpdate()
   })
 
-  // Create local TCP server that forwards through SSH
-  const localServer = net.createServer((socket) => {
-    if (!sshClient || tunnel.status !== 'connected') {
-      socket.destroy()
-      return
-    }
-
-    tunnel.connections++
-
-    const remoteAddr = config.remoteBindAddr || '127.0.0.1'
-    const remotePort = config.remotePort!
-
-    sshClient.forwardOut(
-      socket.remoteAddress || '127.0.0.1',
-      socket.remotePort || 0,
-      remoteAddr,
-      remotePort,
-      (err, channel) => {
-        if (err) {
-          console.error(`[tunnel:${config.id}] forwardOut error:`, err.message)
-          socket.destroy()
-          tunnel.connections--
-          emitStatusUpdate()
-          return
-        }
-
-        let bytesIn = 0
-        let bytesOut = 0
-
-        socket.on('data', (data: Buffer) => {
-          bytesOut += data.length
-          tunnel.totalBytesOut += data.length
-        })
-
-        channel.on('data', (data: Buffer) => {
-          bytesIn += data.length
-          tunnel.totalBytesIn += data.length
-        })
-
-        socket.pipe(channel)
-        channel.pipe(socket)
-
-        channel.on('close', () => {
-          tunnel.connections--
-          emitStatusUpdate()
-          try { socket.destroy() } catch {}
-        })
-
-        socket.on('close', () => {
-          tunnel.connections--
-          emitStatusUpdate()
-          try { channel.close() } catch {}
-        })
-
-        socket.on('error', () => {
-          tunnel.connections--
-          emitStatusUpdate()
-          try { channel.close() } catch {}
-        })
-
-        channel.on('error', () => {
-          tunnel.connections--
-          emitStatusUpdate()
-          try { socket.destroy() } catch {}
-        })
-
-        emitStatusUpdate()
-      }
-    )
-  })
-
-  tunnel.localServer = localServer
-
-  localServer.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EADDRINUSE') {
-      tunnel.status = 'error'
-      tunnel.error = `Port ${config.localPort} is already in use`
-      io.emit('tunnel:error', { id: config.id, error: tunnel.error })
-      emitStatusUpdate()
-    } else {
-      console.error(`[tunnel:${config.id}] Local server error:`, err.message)
-    }
-  })
-
-  localServer.listen(config.localPort, config.localBindAddr, () => {
-    console.log(`[tunnel:${config.id}] Local server listening on ${config.localBindAddr}:${config.localPort}`)
-    // Now connect SSH
-    const sshConfig = buildSSHConfig(config)
-    sshClient.connect(sshConfig)
-  })
+  const sshConfig = buildSSHConfig(config)
+  sshClient.connect(sshConfig)
 }
 
 function startRemoteTunnel(tunnel: ActiveTunnel): void {
@@ -555,10 +525,15 @@ function stopTunnel(id: string): boolean {
     tunnel.localServer = null
   }
 
-  // Close SSH client
+  // Kill native SSH process
+  if (tunnel.sshProcess) {
+    try { tunnel.sshProcess.kill('SIGTERM') } catch {}
+    tunnel.sshProcess = null
+  }
+
+  // Close SSH client (for remote/dynamic tunnels using ssh2)
   if (tunnel.sshClient) {
     try {
-      // For remote tunnels, cancel the forward first
       if (tunnel.config.type === 'remote' && tunnel.config.remotePort) {
         const remoteAddr = tunnel.config.remoteBindAddr || '0.0.0.0'
         try {
@@ -646,6 +621,7 @@ io.on('connection', (socket) => {
       config,
       status: 'connecting',
       sshClient: null,
+      sshProcess: null,
       localServer: null,
       connections: 0,
       totalBytesIn: 0,
