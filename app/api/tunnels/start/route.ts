@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { startTunnel } from '@/lib/tunnel-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,52 +17,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tunnel not found' }, { status: 404 })
     }
 
-    // Update status to starting
     await db.tunnel.update({
       where: { id },
       data: { status: 'starting' },
     })
 
-    // For now, simulate tunnel start
-    // In production, this would connect to the tunnel-service via socket.io
-    // and the tunnel service would create the actual SSH connection
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    const result = await startTunnel({
+      id: tunnel.id,
+      name: tunnel.name,
+      type: tunnel.type as 'local' | 'remote' | 'dynamic',
+      sshHost: tunnel.sshHost,
+      sshPort: tunnel.sshPort,
+      sshUser: tunnel.sshUser,
+      sshKeyPath: tunnel.sshKeyPath ?? undefined,
+      sshPassword: tunnel.sshPassword ?? undefined,
+      localBindAddr: tunnel.localBindAddr,
+      localPort: tunnel.localPort,
+      remoteBindAddr: tunnel.remoteBindAddr ?? undefined,
+      remotePort: tunnel.remotePort ?? undefined,
+    })
 
-    // Update status to active
+    if (!result.success) {
+      await db.tunnel.update({
+        where: { id },
+        data: { status: 'error', errorMessage: result.error || 'Failed to start tunnel' },
+      })
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
+
     await db.tunnel.update({
       where: { id },
-      data: {
-        status: 'active',
-        startedAt: new Date(),
-        errorMessage: null,
-      },
+      data: { status: 'active', startedAt: new Date(), errorMessage: null },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: `Tunnel ${id} started`,
-    })
+    return NextResponse.json({ success: true, message: `Tunnel ${id} started` })
   } catch (error) {
     console.error('Failed to start tunnel:', error)
 
-    // Try to update status to error
     try {
       const { searchParams } = new URL(request.url)
       const id = searchParams.get('id')
       if (id) {
         await db.tunnel.update({
           where: { id },
-          data: {
-            status: 'error',
-            errorMessage: 'Failed to start tunnel',
-          },
+          data: { status: 'error', errorMessage: 'Failed to start tunnel' },
         })
       }
     } catch {}
 
-    return NextResponse.json(
-      { error: 'Failed to start tunnel' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to start tunnel' }, { status: 500 })
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { stopTunnel } from '@/lib/tunnel-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,29 +17,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tunnel not found' }, { status: 404 })
     }
 
-    // For now, simulate tunnel stop
-    // In production, this would signal the tunnel-service to close the SSH connection
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    const result = await stopTunnel(id)
 
-    // Update status to stopped
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
+
     await db.tunnel.update({
       where: { id },
-      data: {
-        status: 'stopped',
-        startedAt: null,
-        errorMessage: null,
-      },
+      data: { status: 'stopped', startedAt: null, errorMessage: null },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: `Tunnel ${id} stopped`,
-    })
+    return NextResponse.json({ success: true, message: `Tunnel ${id} stopped` })
   } catch (error) {
     console.error('Failed to stop tunnel:', error)
-    return NextResponse.json(
-      { error: 'Failed to stop tunnel' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to stop tunnel' }, { status: 500 })
   }
 }
