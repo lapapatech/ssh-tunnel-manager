@@ -17,21 +17,55 @@ model Tunnel {
   sshHost        String
   sshPort        Int      @default(22)
   sshUser        String
-  sshKeyPath     String?  // Path to private key
-  sshPassword    String?  // Password auth (stored encrypted in real app)
+  sshKeyPath     String?
+  sshPassword    String?
   
-  // Local port forwarding: localBindAddr:localPort -> remoteAddr:remotePort via SSH
-  // Remote port forwarding: remoteBindAddr:remotePort -> localAddr:localPort via SSH
-  // Dynamic: localBindAddr:localPort -> SOCKS proxy via SSH
   localBindAddr  String   @default("127.0.0.1")
   localPort      Int
-  remoteBindAddr String?  // For local/remote forwarding
-  remotePort     Int?     // For local/remote forwarding
+  remoteBindAddr String?
+  remotePort     Int?
   
-  // Status info
   pid            Int?
   errorMessage   String?
   startedAt      DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Deployment {
+  id              String   @id @default(cuid())
+  name            String
+  status          String   @default("pending") // pending | deploying | active | error | removed
+
+  // Target machine (behind NAT)
+  targetHost      String
+  targetPort      Int      @default(22)
+  targetUser      String
+  targetPassword  String?
+  targetKeyPath   String?
+
+  // VPS (public server)
+  vpsHost         String
+  vpsPort         Int      @default(22)
+  vpsUser         String   @default("tunneluser")
+  vpsPassword     String?
+  vpsKeyPath      String?
+
+  // Tunnel config
+  remotePort      Int      @default(2222)
+  localPort       Int      @default(22)
+
+  // Options
+  serviceName     String   @default("network-connectivity")
+  camouflage      Boolean  @default(true)
+  ipQosBackground Boolean  @default(false)
+
+  // Runtime
+  sshPublicKey    String?
+  errorMessage    String?
+  currentPhase    String?  // vps-prepare | target-prepare | key-exchange | service-install | verify | complete
+  deployedAt      DateTime?
+  lastSeen        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
