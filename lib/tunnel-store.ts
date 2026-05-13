@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { toast } from 'sonner'
+import { io, Socket } from 'socket.io-client'
 import { getTranslation } from '@/lib/i18n'
 
 export interface Tunnel {
@@ -23,6 +24,62 @@ export interface Tunnel {
   createdAt: Date
 }
 
+interface TunnelServiceStats {
+  id: string
+  status: 'connecting' | 'connected' | 'disconnecting' | 'disconnected' | 'error'
+  startedAt: string | null
+  error: string | null
+}
+
+const TUNNEL_SERVICE_URL =
+  process.env.NEXT_PUBLIC_TUNNEL_SERVICE_URL ||
+  process.env.TUNNEL_SERVICE_URL ||
+  'http://localhost:3003'
+
+let realtimeSocket: Socket | null = null
+let realtimeSubscribers = 0
+let latestServiceStats = new Map<string, TunnelServiceStats>()
+let hasServiceSnapshot = false
+
+function mapServiceStatus(status: TunnelServiceStats['status']): Tunnel['status'] {
+  switch (status) {
+    case 'connecting':
+      return 'starting'
+    case 'connected':
+      return 'active'
+    case 'error':
+      return 'error'
+    case 'disconnecting':
+    case 'disconnected':
+    default:
+      return 'stopped'
+  }
+}
+
+function mergeServiceStats(tunnels: Tunnel[]): Tunnel[] {
+  return tunnels.map((tunnel) => {
+    const stat = latestServiceStats.get(tunnel.id)
+    if (!stat) {
+      if (hasServiceSnapshot && (tunnel.status === 'active' || tunnel.status === 'starting')) {
+        return {
+          ...tunnel,
+          status: 'stopped',
+          startedAt: undefined,
+          errorMessage: undefined,
+        }
+      }
+      return tunnel
+    }
+
+    return {
+      ...tunnel,
+      status: mapServiceStatus(stat.status),
+      startedAt: stat.startedAt ? new Date(stat.startedAt) : undefined,
+      errorMessage: stat.error || undefined,
+    }
+  })
+}
+
 // Helper to get a toast message based on current locale
 function getToast(subKey: string): string {
   return getTranslation(`toasts.${subKey}`)
@@ -38,6 +95,7 @@ interface TunnelStore {
   updateTunnel: (id: string, updates: Partial<Tunnel>) => Promise<void>
   startTunnel: (id: string) => Promise<void>
   stopTunnel: (id: string) => Promise<void>
+  subscribeToTunnelEvents: () => () => void
   setActiveTab: (tab: string) => void
 }
 
@@ -52,7 +110,7 @@ export const useTunnelStore = create<TunnelStore>((set, get) => ({
       const res = await fetch('/api/tunnels')
       if (res.ok) {
         const data = await res.json()
-        set({ tunnels: data.tunnels || [], isLoading: false })
+        set({ tunnels: mergeServiceStats(data.tunnels || []), isLoading: false })
       } else {
         set({ isLoading: false })
       }
@@ -174,6 +232,88 @@ export const useTunnelStore = create<TunnelStore>((set, get) => ({
       }
     } catch {
       toast.error(getToast('stopFailed'))
+    }
+  },
+
+  subscribeToTunnelEvents: () => {
+    realtimeSubscribers += 1
+
+    if (!realtimeSocket) {
+      realtimeSocket = io(TUNNEL_SERVICE_URL, {
+        path: '/socket.io',
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        timeout: 10000,
+      })
+
+      realtimeSocket.on('tunnel:status-update', (stats: TunnelServiceStats[]) => {
+        hasServiceSnapshot = true
+        latestServiceStats = new Map(stats.map((stat) => [stat.id, stat]))
+
+        set((state) => ({
+          tunnels: mergeServiceStats(state.tunnels),
+        }))
+      })
+
+      realtimeSocket.on('tunnel:started', (data: { id: string }) => {
+        latestServiceStats.set(data.id, {
+          id: data.id,
+          status: 'connected',
+          startedAt: new Date().toISOString(),
+          error: null,
+        })
+        set((state) => ({
+          tunnels: state.tunnels.map((tunnel) =>
+            tunnel.id === data.id
+              ? { ...tunnel, status: 'active' as const, startedAt: new Date(), errorMessage: undefined }
+              : tunnel
+          ),
+        }))
+      })
+
+      realtimeSocket.on('tunnel:stopped', (data: { id: string }) => {
+        latestServiceStats.set(data.id, {
+          id: data.id,
+          status: 'disconnected',
+          startedAt: null,
+          error: null,
+        })
+        set((state) => ({
+          tunnels: state.tunnels.map((tunnel) =>
+            tunnel.id === data.id
+              ? { ...tunnel, status: 'stopped' as const, startedAt: undefined, errorMessage: undefined }
+              : tunnel
+          ),
+        }))
+      })
+
+      realtimeSocket.on('tunnel:error', (data: { id: string; error: string }) => {
+        latestServiceStats.set(data.id, {
+          id: data.id,
+          status: 'error',
+          startedAt: null,
+          error: data.error,
+        })
+        set((state) => ({
+          tunnels: state.tunnels.map((tunnel) =>
+            tunnel.id === data.id
+              ? { ...tunnel, status: 'error' as const, errorMessage: data.error }
+              : tunnel
+          ),
+        }))
+      })
+    }
+
+    realtimeSocket.emit('tunnel:status')
+
+    return () => {
+      realtimeSubscribers = Math.max(0, realtimeSubscribers - 1)
+      if (realtimeSubscribers === 0 && realtimeSocket) {
+        realtimeSocket.disconnect()
+        realtimeSocket = null
+      }
     }
   },
 

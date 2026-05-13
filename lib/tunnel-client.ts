@@ -7,7 +7,7 @@ let socket: Socket | null = null
 function getSocket(): Socket {
   if (!socket || !socket.connected) {
     socket = io(TUNNEL_SERVICE_URL, {
-      path: '/',
+      path: '/socket.io',
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,

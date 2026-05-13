@@ -16,12 +16,13 @@ import { LanguageSelector } from '@/components/language-selector'
 import { ExportImportPanel } from '@/components/export-import-panel'
 
 export function TunnelManager() {
-  const { activeTab, setActiveTab, fetchTunnels, tunnels } = useTunnelStore()
+  const { activeTab, setActiveTab, fetchTunnels, subscribeToTunnelEvents, tunnels } = useTunnelStore()
   const { t } = useTranslation()
 
   useEffect(() => {
     fetchTunnels()
-  }, [fetchTunnels])
+    return subscribeToTunnelEvents()
+  }, [fetchTunnels, subscribeToTunnelEvents])
 
   const activeCount = tunnels.filter(t => t.status === 'active').length
 

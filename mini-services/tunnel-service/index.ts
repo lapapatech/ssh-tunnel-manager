@@ -6,10 +6,37 @@ import * as fs from 'fs'
 import { spawn, ChildProcess } from 'child_process'
 
 const PORT = 3003
+const FORWARD_OUT_TIMEOUT_MS = 15000
+const serviceStartedAt = new Date()
 
-const httpServer = createServer()
+const httpServer = createServer((req, res) => {
+  if (req.url?.startsWith('/health')) {
+    const stats = Array.from(tunnels.keys()).map(getTunnelStats).filter(Boolean)
+    const byStatus = stats.reduce<Record<string, number>>((acc, stat: any) => {
+      acc[stat.status] = (acc[stat.status] || 0) + 1
+      return acc
+    }, {})
+
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({
+      ok: true,
+      service: 'tunnel-service',
+      startedAt: serviceStartedAt.toISOString(),
+      uptimeMs: Date.now() - serviceStartedAt.getTime(),
+      tunnels: {
+        total: stats.length,
+        active: stats.filter((stat: any) => stat.status === 'connected').length,
+        byStatus,
+      },
+    }))
+    return
+  }
+
+  res.writeHead(404, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ error: 'Not found' }))
+})
 const io = new Server(httpServer, {
-  path: '/',
+  path: '/socket.io',
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
@@ -121,6 +148,66 @@ function emitStatusUpdate() {
   io.emit('tunnel:status-update', allStats)
 }
 
+function cleanupConnection(tunnel: ActiveTunnel, cleanup: () => void): void {
+  tunnel.connections = Math.max(0, tunnel.connections - 1)
+  emitStatusUpdate()
+  cleanup()
+}
+
+function createOnceCleanup(tunnel: ActiveTunnel, cleanup: () => void): () => void {
+  let closed = false
+  return () => {
+    if (closed) return
+    closed = true
+    cleanupConnection(tunnel, cleanup)
+  }
+}
+
+function forwardOutWithTimeout(
+  sshClient: Client,
+  srcIP: string,
+  srcPort: number,
+  dstIP: string,
+  dstPort: number,
+  callback: (err?: Error | null, stream?: any) => void
+): void {
+  let settled = false
+
+  const timeout = setTimeout(() => {
+    done(new Error(`forwardOut timed out after ${FORWARD_OUT_TIMEOUT_MS}ms`))
+  }, FORWARD_OUT_TIMEOUT_MS)
+
+  const onClose = () => done(new Error('SSH connection closed while opening forwardOut'))
+  const onError = (err: Error) => done(err)
+
+  const cleanup = () => {
+    clearTimeout(timeout)
+    sshClient.off('close', onClose)
+    sshClient.off('end', onClose)
+    sshClient.off('error', onError)
+  }
+
+  const done = (err?: Error | null, stream?: any) => {
+    if (settled) {
+      if (stream) {
+        try { stream.close() } catch {}
+      }
+      return
+    }
+    settled = true
+    cleanup()
+    callback(err, stream)
+  }
+
+  sshClient.once('close', onClose)
+  sshClient.once('end', onClose)
+  sshClient.once('error', onError)
+
+  sshClient.forwardOut(srcIP, srcPort, dstIP, dstPort, (err, stream) => {
+    done(err, stream)
+  })
+}
+
 // ─── Tunnel Management ───────────────────────────────────────────────────────
 
 function buildSSHConfig(config: TunnelConfig): ConnectConfig {
@@ -156,7 +243,8 @@ function startLocalTunnel(tunnel: ActiveTunnel): void {
     const localServer = net.createServer((socket) => {
       tunnel.connections++
 
-      sshClient.forwardOut(
+      forwardOutWithTimeout(
+        sshClient,
         '127.0.0.1',
         config.localPort,
         remoteAddr,
@@ -165,22 +253,17 @@ function startLocalTunnel(tunnel: ActiveTunnel): void {
           if (err) {
             console.error(`[tunnel:${config.id}] forwardOut error:`, err.message)
             socket.destroy()
-            tunnel.connections--
+            tunnel.connections = Math.max(0, tunnel.connections - 1)
             emitStatusUpdate()
             return
           }
 
-          socket.pipe(stream).pipe(socket)
-
-          let closed = false
-          const cleanup = () => {
-            if (closed) return
-            closed = true
-            tunnel.connections--
-            emitStatusUpdate()
+          const cleanup = createOnceCleanup(tunnel, () => {
             try { socket.destroy() } catch {}
             try { stream.close() } catch {}
-          }
+          })
+
+          socket.pipe(stream).pipe(socket)
 
           stream.on('close', cleanup)
           socket.on('close', cleanup)
@@ -283,33 +366,22 @@ function startRemoteTunnel(tunnel: ActiveTunnel): void {
       tunnel.totalBytesOut += data.length
     })
 
-    channel.pipe(localSocket)
-    localSocket.pipe(channel)
-
-    localSocket.on('close', () => {
-      tunnel.connections--
-      emitStatusUpdate()
+    const cleanup = createOnceCleanup(tunnel, () => {
       try { channel.close() } catch {}
-    })
-
-    channel.on('close', () => {
-      tunnel.connections--
-      emitStatusUpdate()
       try { localSocket.destroy() } catch {}
     })
+
+    channel.pipe(localSocket).pipe(channel)
+
+    localSocket.on('close', cleanup)
+    channel.on('close', cleanup)
 
     localSocket.on('error', (err) => {
       console.error(`[tunnel:${config.id}] Local connection error:`, err.message)
-      tunnel.connections--
-      emitStatusUpdate()
-      try { channel.close() } catch {}
+      cleanup()
     })
 
-    channel.on('error', () => {
-      tunnel.connections--
-      emitStatusUpdate()
-      try { localSocket.destroy() } catch {}
-    })
+    channel.on('error', cleanup)
 
     emitStatusUpdate()
   })
@@ -427,7 +499,8 @@ function startDynamicTunnel(tunnel: ActiveTunnel): void {
 
         tunnel.connections++
 
-        sshClient.forwardOut(
+        forwardOutWithTimeout(
+          sshClient,
           socket.remoteAddress || '127.0.0.1',
           socket.remotePort || 0,
           destHost,
@@ -437,7 +510,7 @@ function startDynamicTunnel(tunnel: ActiveTunnel): void {
               // Connection refused
               socket.write(Buffer.from([0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
               socket.destroy()
-              tunnel.connections--
+              tunnel.connections = Math.max(0, tunnel.connections - 1)
               emitStatusUpdate()
               return
             }
@@ -453,32 +526,17 @@ function startDynamicTunnel(tunnel: ActiveTunnel): void {
               tunnel.totalBytesIn += d.length
             })
 
-            socket.pipe(channel)
-            channel.pipe(socket)
-
-            channel.on('close', () => {
-              tunnel.connections--
-              emitStatusUpdate()
+            const cleanup = createOnceCleanup(tunnel, () => {
               try { socket.destroy() } catch {}
-            })
-
-            socket.on('close', () => {
-              tunnel.connections--
-              emitStatusUpdate()
               try { channel.close() } catch {}
             })
 
-            socket.on('error', () => {
-              tunnel.connections--
-              emitStatusUpdate()
-              try { channel.close() } catch {}
-            })
+            socket.pipe(channel).pipe(socket)
 
-            channel.on('error', () => {
-              tunnel.connections--
-              emitStatusUpdate()
-              try { socket.destroy() } catch {}
-            })
+            channel.on('close', cleanup)
+            socket.on('close', cleanup)
+            socket.on('error', cleanup)
+            channel.on('error', cleanup)
 
             emitStatusUpdate()
           }
@@ -649,10 +707,7 @@ io.on('connection', (socket) => {
     console.log(`[socket] tunnel:stop request for ${data.id}`)
 
     if (!tunnels.has(data.id)) {
-      socket.emit('tunnel:error', {
-        id: data.id,
-        error: 'Tunnel not found',
-      })
+      socket.emit('tunnel:stopped', { id: data.id, alreadyStopped: true })
       return
     }
 
@@ -712,5 +767,6 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 httpServer.listen(PORT, () => {
   console.log(`[tunnel-service] SSH Tunnel Management Service running on port ${PORT}`)
-  console.log(`[tunnel-service] WebSocket endpoint: /?XTransformPort=${PORT}`)
+  console.log(`[tunnel-service] Health endpoint: /health`)
+  console.log(`[tunnel-service] WebSocket endpoint: /socket.io`)
 })
