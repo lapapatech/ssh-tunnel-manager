@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { writeDeleteAuditLog } from '@/lib/audit-log'
 
 export async function GET() {
   try {
@@ -69,6 +70,30 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+
+    const body = await request.json().catch(() => null)
+    if (!body?.confirmDelete) {
+      return NextResponse.json({ error: 'Delete confirmation is required' }, { status: 400 })
+    }
+
+    const existing = await db.deployment.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Deployment not found' }, { status: 404 })
+    }
+
+    if (existing.status === 'active' || existing.status === 'deploying') {
+      return NextResponse.json(
+        { error: 'Stop or remove the deployed service before deleting this deployment' },
+        { status: 409 }
+      )
+    }
+
+    await writeDeleteAuditLog(request, {
+      type: 'deployment',
+      id: existing.id,
+      name: existing.name,
+      status: existing.status,
+    })
 
     await db.deployment.delete({ where: { id } })
     return NextResponse.json({ success: true })

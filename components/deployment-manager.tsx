@@ -8,6 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
@@ -247,10 +258,17 @@ function DeployButton({ deployment, onRefresh }: { deployment: Deployment; onRef
 
   const handleDelete = async () => {
     try {
-      const res = await fetch(`/api/deployments?id=${deployment.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/deployments?id=${deployment.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: true }),
+      })
       if (res.ok) {
         toast.success('Deployment eliminado')
         onRefresh()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || 'Error al eliminar')
       }
     } catch {
       toast.error('Error al eliminar')
@@ -272,9 +290,34 @@ function DeployButton({ deployment, onRefresh }: { deployment: Deployment; onRef
           Verificar
         </Button>
       )}
-      <Button size="sm" variant="destructive" onClick={handleDelete}>
-        Eliminar
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={deployment.status === 'active' || deployment.status === 'deploying'}
+          >
+            Eliminar
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar deployment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a eliminar <span className="font-medium">{deployment.name}</span>. Esta acción se auditará y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

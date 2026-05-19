@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { writeDeleteAuditLog } from '@/lib/audit-log'
 
 export async function GET() {
   try {
@@ -93,6 +94,30 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
+
+    const body = await request.json().catch(() => null)
+    if (!body?.confirmDelete) {
+      return NextResponse.json({ error: 'Delete confirmation is required' }, { status: 400 })
+    }
+
+    const existing = await db.tunnel.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Tunnel not found' }, { status: 404 })
+    }
+
+    if (existing.status === 'active' || existing.status === 'starting') {
+      return NextResponse.json(
+        { error: 'Stop the tunnel before deleting it' },
+        { status: 409 }
+      )
+    }
+
+    await writeDeleteAuditLog(request, {
+      type: 'tunnel',
+      id: existing.id,
+      name: existing.name,
+      status: existing.status,
+    })
 
     await db.tunnel.delete({
       where: { id },

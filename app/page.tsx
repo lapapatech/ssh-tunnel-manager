@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TunnelManager } from "@/components/tunnel-manager";
-import { DeploymentManager } from "@/components/deployment-manager";
+import { MainTabs } from "@/components/main-tabs";
 
 export const metadata: Metadata = {
   title: "SSH Port Forwarding Manager",
@@ -16,18 +14,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="container mx-auto p-6">
-      <Tabs defaultValue="tunnels" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="tunnels">Túneles</TabsTrigger>
-          <TabsTrigger value="deployments">Deployer</TabsTrigger>
-        </TabsList>
-        <TabsContent value="tunnels" className="mt-4">
-          <TunnelManager />
-        </TabsContent>
-        <TabsContent value="deployments" className="mt-4">
-          <DeploymentManager />
-        </TabsContent>
-      </Tabs>
+      <MainTabs />
     </div>
   );
 }

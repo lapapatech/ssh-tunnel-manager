@@ -25,7 +25,7 @@ export const useI18nStore = create<I18nStore>()(
 // ============ FLAT TRANSLATIONS DICTIONARY ============
 // Each key maps to { es: string, en: string }
 
-export const translations: Record<string, { es: string; en: string }> = {
+export const translations = {
   // ---- Header ----
   'header.title': { es: 'Gestor de Redirección de Puertos SSH', en: 'SSH Port Forwarding Manager' },
   'header.subtitle': { es: 'Gestiona y visualiza tus túneles SSH', en: 'Manage and visualize your SSH tunnels' },
@@ -37,6 +37,9 @@ export const translations: Record<string, { es: string; en: string }> = {
   'tabs.local': { es: 'Local', en: 'Local' },
   'tabs.remote': { es: 'Remoto', en: 'Remote' },
   'tabs.dynamic': { es: 'Dinámico', en: 'Dynamic' },
+  'navigation.tunnels': { es: 'Túneles', en: 'Tunnels' },
+  'navigation.deployer': { es: 'Deployer', en: 'Deployer' },
+  'navigation.advancedTechniques': { es: 'Técnicas avanzadas', en: 'Advanced techniques' },
 
   // ---- Diagram section titles ----
   'diagrams.localTitle': { es: 'Redirección Local de Puertos (-L)', en: 'Local Port Forwarding (-L)' },
@@ -166,18 +169,178 @@ export const translations: Record<string, { es: string; en: string }> = {
   // ---- Footer ----
   'footer.madeWith': { es: 'Hecho con Next.js y shadcn/ui', en: 'Made with Next.js and shadcn/ui' },
   'footer.secureAndEncrypted': { es: 'Seguro y Cifrado', en: 'Secure and Encrypted' },
-}
+  'advanced.pageTitle': { es: 'Técnicas de túnel avanzadas (catálogo de referencia)', en: 'Advanced tunneling techniques (reference catalog)' },
+  'advanced.pageDescription': { es: 'Cobertura de métodos avanzados no incluidos en el motor actual de ejecución.', en: 'Coverage of advanced methods not included in the current execution engine.' },
+  'advanced.pageIntro': { es: 'Esta vista no lanza procesos nuevos. Sirve para comparar estrategias, revisar comandos base y decidir el método adecuado según red, permisos y riesgo operativo.', en: 'This view does not launch new processes. It is intended to compare strategies, review base commands, and choose the right method by network, permissions, and operational risk.' },
+  'advanced.badges.execution': { es: 'Listo para producción: -L/-R/-D', en: 'Production-ready: -L/-R/-D' },
+  'advanced.badges.reference': { es: 'Referencia: Deployer/autossh', en: 'Reference: Deployer/autossh' },
+  'advanced.labels.recommended': { es: 'Qué recomendable', en: 'Recommended' },
+  'advanced.labels.limitations': { es: 'Limitaciones prácticas', en: 'Practical limitations' },
+  'advanced.labels.useCases': { es: 'Casos de uso', en: 'Use cases' },
+  'advanced.labels.commands': { es: 'Comandos base (plantillas)', en: 'Base commands (templates)' },
+  'advanced.action.copy': { es: 'Copiar', en: 'Copy' },
+  'advanced.toast.commandCopied': { es: 'Comando', en: 'Command' },
+  'advanced.toast.commandCopyFailed': { es: 'No se pudo copiar el comando', en: 'Unable to copy command' },
+  'advanced.toast.noClipboard': { es: 'Portapapeles no disponible en este entorno', en: 'Clipboard unavailable in this environment' },
+  'advanced.state.executable': { es: 'Ejecutable', en: 'Executable' },
+  'advanced.state.documented': { es: 'Documentado', en: 'Documented' },
+  'advanced.supportTitle': { es: 'Soporte en esta app', en: 'Support in this app' },
+  'advanced.supportDescription': { es: 'Distinción explícita para evitar falsas expectativas operativas.', en: 'Explicit distinction to avoid operational misunderstandings.' },
+  'advanced.supportTable.technique': { es: 'Técnica', en: 'Technique' },
+  'advanced.supportTable.scope': { es: 'Ámbito', en: 'Scope' },
+  'advanced.supportTable.state': { es: 'Estado', en: 'State' },
+  'advanced.supportTable.note': { es: 'Nota', en: 'Note' },
+  'advanced.supportRows.sshLocal': { es: 'SSH -L / Local Forwarding', en: 'SSH -L / Local Forwarding' },
+  'advanced.supportRows.sshRemote': { es: 'SSH -R / Remote Forwarding', en: 'SSH -R / Remote Forwarding' },
+  'advanced.supportRows.sshDynamic': { es: 'SSH -D / SOCKS', en: 'SSH -D / SOCKS' },
+  'advanced.supportRows.deployer': { es: 'Deployer / persistent reverse tunnel', en: 'Deployer / persistent reverse tunnel' },
+  'advanced.supportRows.chisel': { es: 'Chisel', en: 'Chisel' },
+  'advanced.supportRows.ligolo': { es: 'Ligolo-ng', en: 'Ligolo-ng' },
+  'advanced.supportRows.dns': { es: 'DNS tunneling', en: 'DNS tunneling' },
+  'advanced.supportRows.icmp': { es: 'ICMP tunneling', en: 'ICMP tunneling' },
+  'advanced.supportRows.wstunnel': { es: 'wstunnel', en: 'wstunnel' },
+  'advanced.supportRows.frp': { es: 'FRP', en: 'FRP' },
+  'advanced.supportRows.quic': { es: 'QUIC (Hysteria)', en: 'QUIC (Hysteria)' },
+  'advanced.supportRows.proxyjump': { es: 'SSH ProxyJump', en: 'SSH ProxyJump' },
+  'advanced.supportRows.categoryTunnelService': { es: 'Motor `mini-services/tunnel-service`', en: '`mini-services/tunnel-service` engine' },
+  'advanced.supportRows.categoryAutossh': { es: 'mini-service + `autossh` + `systemd`', en: 'mini-service + `autossh` + `systemd`' },
+  'advanced.supportRows.categoryReference': { es: 'Referencia técnica', en: 'Reference-only' },
+  'advanced.supportRows.noteEnabled': { es: 'Implementado en UI y ejecución real.', en: 'Implemented in UI with real execution.' },
+  'advanced.supportRows.noteDeployer': { es: 'Disponible en la pestaña Deployer; instalación remota guiada.', en: 'Available from Deployer tab; guided remote installation.' },
+  'advanced.supportRows.noteReference': { es: 'No se lanza desde esta UI.', en: 'Not launched from this UI.' },
+  'advanced.supportRows.noteProxyJump': { es: 'Configurable dentro de flujo SSH manual.', en: 'Configurable in manual SSH flow.' },
+  'advanced.techniques.chisel.name': { es: 'Chisel', en: 'Chisel' },
+  'advanced.techniques.chisel.description': { es: 'Proxy de tunelización TCP/SOCKS sobre HTTP(S) orientado a atravesar redes con filtrado estricto y NAT.', en: 'TCP/SOCKS tunneling proxy over HTTP(S), aimed at crossing networks with strict filtering and NAT.' },
+  'advanced.techniques.chisel.binary': { es: 'Binario externo `chisel` en cliente y servidor', en: 'External `chisel` binary on client and server' },
+  'advanced.techniques.chisel.recommended': { es: 'Puertos 8080/443, bind recomendado 0.0.0.0:PUERTO y autenticación básica con token.', en: 'Ports 8080/443, recommended bind 0.0.0.0:PORT and basic token authentication.' },
+  'advanced.techniques.chisel.useCase1': { es: 'Acceso a equipos internos cuando sólo sale tráfico web desde la LAN.', en: 'Access internal hosts when only web traffic exits the LAN.' },
+  'advanced.techniques.chisel.useCase2': { es: 'Saltar restricciones corporativas sin alterar clientes remotos.', en: 'Bypass corporate restrictions without changing remote clients.' },
+  'advanced.techniques.chisel.useCase3': { es: 'Exponer servicios internos con menor ruido de firma que un túnel SSH clásico.', en: 'Expose internal services with lower signature noise than a classic SSH tunnel.' },
+  'advanced.techniques.chisel.limitation1': { es: 'Necesita binario `chisel` instalado en ambos extremos.', en: '`chisel` binary required on both ends.' },
+  'advanced.techniques.chisel.limitation2': { es: 'No sustituye controles de acceso del servicio original; exige hardening adicional.', en: 'Does not replace existing service access controls; extra hardening is required.' },
+  'advanced.techniques.chisel.limitation3': { es: 'Mayor consumo persistente de recursos con cargas largas, sobre todo en modo SOCKS.', en: 'Higher persistent resource overhead, especially in SOCKS mode.' },
+  'advanced.techniques.chisel.cmdRelayServer': { es: 'Servidor / relay', en: 'Server / relay' },
+  'advanced.techniques.chisel.cmdClientReverse': { es: 'Cliente (reverse) + túnel local', en: 'Client (reverse) + local tunnel' },
+  'advanced.techniques.chisel.cmdClientSocks': { es: 'Cliente (SOCKS local)', en: 'Client (local SOCKS)' },
+  'advanced.techniques.ligolo.name': { es: 'Ligolo-ng', en: 'Ligolo-ng' },
+  'advanced.techniques.ligolo.description': { es: 'Plataforma de pivotaje y malla de red para saltar segmentos LAN con agentes.', en: 'Pivoting platform and network mesh to cross LAN segments with agents.' },
+  'advanced.techniques.ligolo.binary': { es: 'Binario externo `ligolo-ng` (agent/server) + configuración de red local', en: 'External `ligolo-ng` binary (agent/server) and local network configuration' },
+  'advanced.techniques.ligolo.recommended': { es: 'Puerto 11601 para control-plane, escucha 0.0.0.0 y puente de red según segmento objetivo.', en: 'Port 11601 for control-plane, listen on 0.0.0.0 and configure network bridge per target segment.' },
+  'advanced.techniques.ligolo.useCase1': { es: 'Pivotar entre subredes internas para entornos de auditoría.', en: 'Pivot between internal subnets for audit environments.' },
+  'advanced.techniques.ligolo.useCase2': { es: 'Acceso a servicios no directamente enrutables.', en: 'Access to services that are not directly routable.' },
+  'advanced.techniques.ligolo.useCase3': { es: 'Operación centralizada tipo laboratorio de pruebas.', en: 'Centralized operation in lab-style testing.' },
+  'advanced.techniques.ligolo.limitation1': { es: 'No es método recomendado para operación de producción estándar.', en: 'Not intended as a standard production method.' },
+  'advanced.techniques.ligolo.limitation2': { es: 'Requiere rutas y ruteo entre interfaces del agente.', en: 'Requires routing between agent interfaces.' },
+  'advanced.techniques.ligolo.limitation3': { es: 'Coste operativo alto si escala a muchos hosts.', en: 'Higher operational cost when scaling to many hosts.' },
+  'advanced.techniques.ligolo.cmdServer': { es: 'Servidor Ligolo', en: 'Ligolo server' },
+  'advanced.techniques.ligolo.cmdAgent': { es: 'Agente', en: 'Agent' },
+  'advanced.techniques.dns.name': { es: 'DNS tunneling', en: 'DNS tunneling' },
+  'advanced.techniques.dns.description': { es: 'Túnel de tráfico encapsulado en consultas DNS para atravesar controles de egress estrictos.', en: 'Traffic encapsulated in DNS queries to bypass strict egress controls.' },
+  'advanced.techniques.dns.binary': { es: 'Binario externo `iodine` (o equivalente DNS tunneling)', en: 'External `iodine` binary (or equivalent DNS tunneling)' },
+  'advanced.techniques.dns.recommended': { es: 'Dominios dedicados, TTL corto y UDP/53; separar canal de control y datos.', en: 'Dedicated domains, short TTL, UDP/53; separate control and data channels.' },
+  'advanced.techniques.dns.useCase1': { es: 'Recuperar conectividad cuando solo se permite DNS.', en: 'Restore connectivity when only DNS is allowed.' },
+  'advanced.techniques.dns.useCase2': { es: 'Canales de administración ligeros cuando otros métodos fallan.', en: 'Lightweight admin channels when other methods fail.' },
+  'advanced.techniques.dns.useCase3': { es: 'Vía de contingencia en incidentes de bloqueo de puertos.', en: 'Fallback path during port-blocking incidents.' },
+  'advanced.techniques.dns.limitation1': { es: 'Baja tasa de transferencia, no apto para alto volumen.', en: 'Low throughput; unsuitable for high volume.' },
+  'advanced.techniques.dns.limitation2': { es: 'Elevada tasa de falsos positivos si el payload no está bien ofuscado.', en: 'Higher false-positive risk if payload is not well obfuscated.' },
+  'advanced.techniques.dns.limitation3': { es: 'Necesita control de DNS autoritativo del dominio delegado.', en: 'Needs control over authoritative DNS for delegated domain.' },
+  'advanced.techniques.dns.cmdServer': { es: 'Servidor', en: 'Server' },
+  'advanced.techniques.dns.cmdClient': { es: 'Cliente', en: 'Client' },
+  'advanced.techniques.icmp.name': { es: 'ICMP tunneling', en: 'ICMP tunneling' },
+  'advanced.techniques.icmp.description': { es: 'Túnel sobre paquetes ICMP como método de emergencia cuando sólo responde ping en la salida.', en: 'Tunneling via ICMP packets as an emergency method when only ping is reachable.' },
+  'advanced.techniques.icmp.binary': { es: 'Herramienta externa `ptunnel-ng` o equivalente y privilegios raw socket', en: 'External `ptunnel-ng` or equivalent with raw socket privileges' },
+  'advanced.techniques.icmp.recommended': { es: 'Mantén ruta y AS similares, y valida MTU antes de operación sostenida.', en: 'Keep ASN/path stable and validate MTU before sustained operation.' },
+  'advanced.techniques.icmp.useCase1': { es: 'Fallback si TCP/UDP está bloqueado pero ICMP responde.', en: 'Fallback when TCP/UDP is blocked but ICMP responds.' },
+  'advanced.techniques.icmp.useCase2': { es: 'Conexiones de administración en recuperación de red.', en: 'Admin links during network recovery.' },
+  'advanced.techniques.icmp.useCase3': { es: 'Canal de baja visibilidad en perímetros restrictivos.', en: 'Low-visibility channel in restrictive perimeters.' },
+  'advanced.techniques.icmp.limitation1': { es: 'Alta latencia y jitter.', en: 'High latency and jitter.' },
+  'advanced.techniques.icmp.limitation2': { es: 'Sensibilidad a IDS/IPS modernos y posibles bloqueos.', en: 'Sensitive to modern IDS/IPS and possible blocking.' },
+  'advanced.techniques.icmp.limitation3': { es: 'Capacidad limitada frente a túneles TCP normales.', en: 'Limited capacity compared to normal TCP tunnels.' },
+  'advanced.techniques.icmp.cmdServer': { es: 'Servidor receptor', en: 'Receiver server' },
+  'advanced.techniques.icmp.cmdClient': { es: 'Cliente emisor', en: 'Sender client' },
+  'advanced.techniques.wstunnel.name': { es: 'wstunnel', en: 'wstunnel' },
+  'advanced.techniques.wstunnel.description': { es: 'Túnel sobre WebSocket para encapsular tráfico de capa 4 en conexiones HTTP/WS.', en: 'Layer-4 tunneling over WebSocket for HTTP/WS connections.' },
+  'advanced.techniques.wstunnel.binary': { es: 'Binario externo `wstunnel` (cliente y servidor) + TLS/WSS', en: 'External `wstunnel` binary (client and server) + TLS/WSS' },
+  'advanced.techniques.wstunnel.recommended': { es: 'Usar puertos 443 para egress web, certs válidos y keepalive activo.', en: 'Use web egress ports such as 443, valid certificates and keepalive enabled.' },
+  'advanced.techniques.wstunnel.useCase1': { es: 'Saltar firewalls que sólo permiten HTTPS/WS.', en: 'Bypass firewalls that allow only HTTPS/WS.' },
+  'advanced.techniques.wstunnel.useCase2': { es: 'Reemplazar proxies sin inspección profunda compleja.', en: 'Replace proxies without complex deep inspection requirements.' },
+  'advanced.techniques.wstunnel.useCase3': { es: 'Conectividad simplificada tras CDN o perímetros.', en: 'Simplified connectivity via CDN or perimeter layers.' },
+  'advanced.techniques.wstunnel.limitation1': { es: 'No aporta control de acceso extremo a extremo por sí solo.', en: 'Does not provide end-to-end access control alone.' },
+  'advanced.techniques.wstunnel.limitation2': { es: 'No cubre el control de sesión completo de ssh -J.', en: 'Does not replicate SSH jump-session flow control.' },
+  'advanced.techniques.wstunnel.limitation3': { es: 'Rendimiento afectado en tramos largos por latencia WS.', en: 'Performance can degrade on long paths due to WebSocket latency.' },
+  'advanced.techniques.wstunnel.cmdServer': { es: 'Servidor', en: 'Server' },
+  'advanced.techniques.wstunnel.cmdClient': { es: 'Cliente hacia destino interno', en: 'Client to internal destination' },
+  'advanced.techniques.frp.name': { es: 'FRP (Fast Reverse Proxy)', en: 'FRP (Fast Reverse Proxy)' },
+  'advanced.techniques.frp.description': { es: 'Proxy de traspaso de puertos para despliegue y administración centralizada.', en: 'Port forwarding proxy for centralized deployment and administration.' },
+  'advanced.techniques.frp.binary': { es: 'Binarios externos `frps` y `frpc` con configuración por archivo', en: 'External `frps` and `frpc` binaries with file-based configuration' },
+  'advanced.techniques.frp.recommended': { es: 'Puertos 7000/7500 y túneles persistentes como daemon.', en: 'Ports 7000/7500 and persistent daemonized tunnels.' },
+  'advanced.techniques.frp.useCase1': { es: 'Exponer múltiples servicios internos desde una sola salida pública.', en: 'Expose multiple internal services from one public egress.' },
+  'advanced.techniques.frp.useCase2': { es: 'Estandarizar accesos en equipos con inventario central.', en: 'Standardize access across teams with central inventory.' },
+  'advanced.techniques.frp.useCase3': { es: 'NAT traversal con múltiples clientes FRP.', en: 'NAT traversal with multiple FRP clients.' },
+  'advanced.techniques.frp.limitation1': { es: 'Requiere mantenimiento de configuración por archivos.', en: 'Requires file-based configuration maintenance.' },
+  'advanced.techniques.frp.limitation2': { es: 'Necesita supervisión de procesos y certificados.', en: 'Needs process and certificate monitoring.' },
+  'advanced.techniques.frp.limitation3': { es: 'No está integrado en el scheduler de esta UI.', en: 'Not integrated with this app scheduler.' },
+  'advanced.techniques.frp.cmdServerIni': { es: 'frps.ini (servidor)', en: 'frps.ini (server)' },
+  'advanced.techniques.frp.cmdClientIni': { es: 'frpc.ini (cliente)', en: 'frpc.ini (client)' },
+  'advanced.techniques.frp.cmdRun': { es: 'Arranque', en: 'Startup' },
+  'advanced.techniques.quic.name': { es: 'QUIC tunnel (Hysteria / QUIC ecosystem)', en: 'QUIC tunnel (Hysteria / QUIC ecosystem)' },
+  'advanced.techniques.quic.description': { es: 'Aprovechar transporte QUIC para reducir handshake y mejorar la latencia en enlaces con alta pérdida.', en: 'Use QUIC transport to reduce handshakes and improve latency on lossy links.' },
+  'advanced.techniques.quic.binary': { es: 'Binario externo `hysteria` o stack compatible con QUIC', en: 'External `hysteria` binary or QUIC-compatible stack' },
+  'advanced.techniques.quic.recommended': { es: 'Puertos UDP 443/8443, certificados TLS y límites de ancho de banda por flujo.', en: 'UDP ports 443/8443, TLS certificates, and per-flow bandwidth limits.' },
+  'advanced.techniques.quic.useCase1': { es: 'Enlaces móviles o 5G con pérdida intermitente.', en: 'Mobile/5G links with intermittent packet loss.' },
+  'advanced.techniques.quic.useCase2': { es: 'Reducir bloqueo por inspección superficial de TCP.', en: 'Reduce blocking from basic TCP inspection.' },
+  'advanced.techniques.quic.useCase3': { es: 'Multiplexación más eficiente tras cortafuegos.', en: 'More efficient multiplexing behind firewalls.' },
+  'advanced.techniques.quic.limitation1': { es: 'Stack menos común en entornos enterprise.', en: 'Less common stack in enterprise environments.' },
+  'advanced.techniques.quic.limitation2': { es: 'Mayor curva de ajuste de parámetros y timeouts.', en: 'Steeper parameter and timeout tuning curve.' },
+  'advanced.techniques.quic.limitation3': { es: 'Compatibilidad variable según versión cliente/servidor.', en: 'Compatibility varies across client/server versions.' },
+  'advanced.techniques.quic.cmdServer': { es: 'Servidor QUIC', en: 'QUIC server' },
+  'advanced.techniques.quic.cmdClient': { es: 'Cliente QUIC', en: 'QUIC client' },
+  'advanced.techniques.quic.cmdAcl': { es: 'ACL base', en: 'Base ACL' },
+  'advanced.techniques.proxyjump.name': { es: 'SSH ProxyJump', en: 'SSH ProxyJump' },
+  'advanced.techniques.proxyjump.description': { es: 'Cadena de saltos SSH con -J para atravesar bastiones sin herramientas externas.', en: 'SSH multi-hop chaining with -J to traverse bastions without extra tools.' },
+  'advanced.techniques.proxyjump.binary': { es: 'Cliente OpenSSH y acceso al host saltador', en: 'OpenSSH client and access to the jump host' },
+  'advanced.techniques.proxyjump.recommended': { es: 'Puertos 22/2222 por salto; usar ControlMaster para optimizar.', en: 'Ports 22/2222 per hop; use ControlMaster for optimization.' },
+  'advanced.techniques.proxyjump.useCase1': { es: 'Saltos simples por bastión intermedio.', en: 'Simple intermediate bastion jumps.' },
+  'advanced.techniques.proxyjump.useCase2': { es: 'Centralizar autenticación con jump host.', en: 'Centralize authentication with a jump host.' },
+  'advanced.techniques.proxyjump.useCase3': { es: 'Auditoría consistente dentro del protocolo SSH.', en: 'Consistent auditing within SSH protocol.' },
+  'advanced.techniques.proxyjump.limitation1': { es: 'Depende de saltadores accesibles y mantenidos.', en: 'Depends on accessible and maintained jump hosts.' },
+  'advanced.techniques.proxyjump.limitation2': { es: 'Escalabilidad limitada en topologías profundas.', en: 'Limited scalability in deep topologies.' },
+  'advanced.techniques.proxyjump.limitation3': { es: 'No añade cifrado adicional al cifrado SSH.', en: 'Does not add encryption beyond SSH encryption.' },
+  'advanced.techniques.proxyjump.cmdChain': { es: 'Cadena clásica', en: 'Classic chain' },
+  'advanced.techniques.proxyjump.cmdMultiHop': { es: 'Multi-hop', en: 'Multi-hop' },
+  'advanced.techniques.proxyjump.cmdWithTunnel': { es: 'Con túnel local', en: 'With local tunnel' },
+  'advanced.techniques.autossh.name': { es: 'autossh + systemd (persistent reverse)', en: 'autossh + systemd (persistent reverse)' },
+  'advanced.techniques.autossh.description': { es: 'Referencia de operación persistente para túneles reverse con reconexión automática y servicio.', en: 'Reference for persistent reverse tunneling with automatic reconnect and service integration.' },
+  'advanced.techniques.autossh.binary': { es: 'Autossh + bash + systemd en host destino; OpenSSH configurado', en: 'Autossh + bash + systemd on target host; OpenSSH configured' },
+  'advanced.techniques.autossh.recommended': { es: 'Usar `autossh` en servicio systemd, bind remoto por puerto de exposición.', en: 'Use `autossh` via systemd service, with remote bind per exposed port.' },
+  'advanced.techniques.autossh.useCase1': { es: 'Mantener túneles reversos persistentes desde equipos tras NAT.', en: 'Keep persistent reverse tunnels from NATed hosts.' },
+  'advanced.techniques.autossh.useCase2': { es: 'Reconexión automática ante caída de red.', en: 'Automatic reconnection on network drop.' },
+  'advanced.techniques.autossh.useCase3': { es: 'Operación mínima con supervisión ligera.', en: 'Low-touch operation with lightweight supervision.' },
+  'advanced.techniques.autossh.limitation1': { es: 'Esta UI solo expone flujo de configuración y despliegue en Deployer.', en: 'This UI exposes only configuration/deploy flow via Deployer.' },
+  'advanced.techniques.autossh.limitation2': { es: 'Requiere instalación de binarios/systemd en destino.', en: 'Requires binaries/systemd installed on destination.' },
+  'advanced.techniques.autossh.limitation3': { es: 'No está pensada para orquestación de topologías multi-salto complejas.', en: 'Not designed for complex multi-hop orchestration.' },
+  'advanced.techniques.autossh.cmdTemplate': { es: 'Plantilla base', en: 'Base template' },
+  'advanced.techniques.autossh.cmdUnit': { es: 'Patrón en unit file', en: 'systemd unit file pattern' },
+} as const satisfies Record<string, { es: string; en: string }>
+
+type TranslationKey = keyof typeof translations
+type TranslationNamespace = {
+  [Key in TranslationKey]: Key extends `${infer Prefix}.${string}` ? Prefix : never
+}[TranslationKey]
+type NamespaceKeys<Prefix extends TranslationNamespace> =
+  Extract<TranslationKey, `${Prefix}.${string}`> extends `${Prefix}.${infer Key}` ? Key : never
+type NamespaceProxy<Prefix extends TranslationNamespace> = Record<NamespaceKeys<Prefix>, string>
 
 // Helper to get a translation by key and locale
 export function translate(key: string, locale: Locale): string {
-  const entry = translations[key]
+  const entry = translations[key as TranslationKey]
   return (entry?.[locale] || entry?.['en'] || key)
 }
 
 // Helper to get a toast translation by sub-key and locale (for non-React contexts)
 export function getTranslation(key: string, locale?: Locale): string {
   const loc = locale || getDefaultLocale()
-  const entry = translations[key]
+  const entry = translations[key as TranslationKey]
   return (entry?.[loc] || entry?.['en'] || key)
 }
 
@@ -204,7 +367,7 @@ function createNamespace(locale: Locale, prefix: string): Record<string, string>
     get: (_, prop: string) => {
       if (prop === '__proto__' || typeof prop === 'symbol') return undefined
       const key = `${prefix}.${prop}`
-      const entry = translations[key]
+      const entry = translations[key as TranslationKey]
       return (entry?.[locale] || entry?.['en'] || key)
     },
   })
@@ -217,9 +380,11 @@ export function useTranslation() {
   // t() supports two patterns:
   // 1. t('header.title') → returns string directly
   // 2. t('form') → returns a namespace proxy where .field looks up 'form.field'
-  const t = (keyOrPrefix: string): string | Record<string, string> => {
+  function t<Key extends TranslationKey>(keyOrPrefix: Key): string
+  function t<Prefix extends TranslationNamespace>(keyOrPrefix: Prefix): NamespaceProxy<Prefix>
+  function t(keyOrPrefix: string): string | Record<string, string> {
     // Check if it's an exact key match (e.g., 'header.title')
-    const entry = translations[keyOrPrefix]
+    const entry = translations[keyOrPrefix as TranslationKey]
     if (entry) {
       return entry[locale] || entry['en'] || keyOrPrefix
     }

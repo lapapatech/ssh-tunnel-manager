@@ -1,0 +1,24 @@
+import nextVitals from 'eslint-config-next/core-web-vitals'
+
+const config = [
+  ...nextVitals,
+  {
+    rules: {
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      'out/**',
+      'dist/**',
+      'dev.log',
+      'server.log',
+      'logs/**',
+    ],
+  },
+]
+
+export default config

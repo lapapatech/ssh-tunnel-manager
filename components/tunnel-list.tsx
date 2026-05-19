@@ -20,6 +20,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { useTunnelStore, type Tunnel } from '@/lib/tunnel-store'
 import { useTranslation } from '@/lib/i18n'
 import { toast } from 'sonner'
@@ -222,15 +233,40 @@ function TunnelCard({ tunnel }: { tunnel: Tunnel }) {
               >
                 <Copy className="size-3.5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground hover:text-destructive"
-                onClick={() => removeTunnel(tunnel.id)}
-                title={t('list').deleteTunnel}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-destructive"
+                    disabled={isActive || isStarting}
+                    title={
+                      isActive || isStarting
+                        ? 'Detén el túnel antes de eliminarlo'
+                        : t('list').deleteTunnel
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Eliminar túnel</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vas a eliminar <span className="font-medium">{tunnel.name}</span>. Esta acción se auditará y no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => removeTunnel(tunnel.id)}
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardContent>

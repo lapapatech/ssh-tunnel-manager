@@ -143,14 +143,19 @@ export const useTunnelStore = create<TunnelStore>((set, get) => ({
 
   removeTunnel: async (id) => {
     try {
-      const res = await fetch(`/api/tunnels?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/tunnels?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: true }),
+      })
       if (res.ok) {
         set((state) => ({
           tunnels: state.tunnels.filter((t) => t.id !== id),
         }))
         toast.success(getToast('tunnelDeleted'))
       } else {
-        toast.error(getToast('deleteFailed'))
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || getToast('deleteFailed'))
       }
     } catch {
       toast.error(getToast('deleteFailed'))
