@@ -1,14 +1,14 @@
-import { io, Socket } from 'socket.io-client'
+import { io, Socket } from "socket.io-client"
 
-const TUNNEL_SERVICE_URL = process.env.TUNNEL_SERVICE_URL || 'http://localhost:3003'
+const TUNNEL_SERVICE_URL = process.env.TUNNEL_SERVICE_URL || "http://localhost:3003"
 
 let socket: Socket | null = null
 
 function getSocket(): Socket {
   if (!socket || !socket.connected) {
     socket = io(TUNNEL_SERVICE_URL, {
-      path: '/socket.io',
-      transports: ['websocket'],
+      path: "/socket.io",
+      transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -21,7 +21,7 @@ function getSocket(): Socket {
 interface TunnelConfig {
   id: string
   name: string
-  type: 'local' | 'remote' | 'dynamic'
+  type: "local" | "remote" | "dynamic"
   sshHost: string
   sshPort: number
   sshUser: string
@@ -31,6 +31,8 @@ interface TunnelConfig {
   localPort: number
   remoteBindAddr?: string
   remotePort?: number
+  technique?: string
+  command?: string
 }
 
 export function startTunnel(config: TunnelConfig): Promise<{ success: boolean; error?: string }> {
@@ -38,13 +40,13 @@ export function startTunnel(config: TunnelConfig): Promise<{ success: boolean; e
     const s = getSocket()
     const timeout = setTimeout(() => {
       cleanup()
-      resolve({ success: false, error: 'Timeout waiting for tunnel-service response' })
+      resolve({ success: false, error: "Timeout waiting for tunnel-service response" })
     }, 15000)
 
     function cleanup() {
       clearTimeout(timeout)
-      s.off('tunnel:started', onStarted)
-      s.off('tunnel:error', onError)
+      s.off("tunnel:started", onStarted)
+      s.off("tunnel:error", onError)
     }
 
     function onStarted(data: { id: string }) {
@@ -61,9 +63,9 @@ export function startTunnel(config: TunnelConfig): Promise<{ success: boolean; e
       }
     }
 
-    s.on('tunnel:started', onStarted)
-    s.on('tunnel:error', onError)
-    s.emit('tunnel:start', config)
+    s.on("tunnel:started", onStarted)
+    s.on("tunnel:error", onError)
+    s.emit("tunnel:start", config)
   })
 }
 
@@ -72,13 +74,13 @@ export function stopTunnel(id: string): Promise<{ success: boolean; error?: stri
     const s = getSocket()
     const timeout = setTimeout(() => {
       cleanup()
-      resolve({ success: false, error: 'Timeout waiting for tunnel-service response' })
+      resolve({ success: false, error: "Timeout waiting for tunnel-service response" })
     }, 10000)
 
     function cleanup() {
       clearTimeout(timeout)
-      s.off('tunnel:stopped', onStopped)
-      s.off('tunnel:error', onError)
+      s.off("tunnel:stopped", onStopped)
+      s.off("tunnel:error", onError)
     }
 
     function onStopped(data: { id: string }) {
@@ -95,8 +97,8 @@ export function stopTunnel(id: string): Promise<{ success: boolean; error?: stri
       }
     }
 
-    s.on('tunnel:stopped', onStopped)
-    s.on('tunnel:error', onError)
-    s.emit('tunnel:stop', { id })
+    s.on("tunnel:stopped", onStopped)
+    s.on("tunnel:error", onError)
+    s.emit("tunnel:stop", { id })
   })
 }

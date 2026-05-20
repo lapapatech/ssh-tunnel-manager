@@ -47,6 +47,19 @@ const io = new Server(httpServer, {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type TechniqueType = 'chisel' | 'ligolo' | 'dns' | 'icmp' | 'wstunnel' | 'frp' | 'quic' | 'proxyjump'
+
+const TECHNIQUE_BINARIES: Record<TechniqueType, string> = {
+  chisel: 'chisel',
+  ligolo: 'ligolo-ng',
+  dns: 'iodine',
+  icmp: 'ptunnel-ng',
+  wstunnel: 'wstunnel',
+  frp: 'frpc',
+  quic: 'hysteria',
+  proxyjump: 'ssh',
+}
+
 interface TunnelConfig {
   id: string
   name: string
@@ -60,6 +73,8 @@ interface TunnelConfig {
   localPort: number
   remoteBindAddr?: string
   remotePort?: number
+  technique?: TechniqueType
+  command?: string
 }
 
 type TunnelStatus = 'connecting' | 'connected' | 'disconnecting' | 'disconnected' | 'error'
@@ -124,6 +139,7 @@ function getTunnelStats(id: string) {
     id,
     name: tunnel.config.name,
     type: tunnel.config.type,
+    technique: tunnel.config.technique || null,
     status: tunnel.status,
     connections: tunnel.connections,
     totalBytesIn: tunnel.totalBytesIn,
@@ -205,6 +221,90 @@ function forwardOutWithTimeout(
 
   sshClient.forwardOut(srcIP, srcPort, dstIP, dstPort, (err, stream) => {
     done(err, stream)
+  })
+}
+
+// ─── Technique Binary Spawner ────────────────────────────────────────────────
+
+function resolveBinary(technique: TechniqueType, explicitBinary?: string): string {
+  if (explicitBinary) return explicitBinary
+  return TECHNIQUE_BINARIES[technique]
+}
+
+function startTechniqueTunnel(tunnel: ActiveTunnel): void {
+  const { config } = tunnel
+  const technique = config.technique!
+
+  if (!config.command) {
+    tunnel.status = 'error'
+    tunnel.error = `Technique "${technique}" requires a command`
+    io.emit('tunnel:error', { id: config.id, error: tunnel.error })
+    emitStatusUpdate()
+    return
+  }
+
+  // Resolve binary: use command's first word, or technique default
+  const cmdParts = config.command.split(/\s+/)
+  const binary = cmdParts[0]
+  const args = cmdParts.slice(1)
+
+  // Check binary exists
+  if (!fs.existsSync(binary) && !binary.includes('/')) {
+    // Try which
+    try {
+      const whichResult = spawn('which', [binary], { stdio: 'pipe' })
+      // best effort — if binary isn't found, spawn will fail anyway
+    } catch {}
+  }
+
+  console.log(`[tunnel:${config.id}] Spawning technique "${technique}": ${config.command}`)
+
+  const child = spawn(binary, args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    detached: false,
+  })
+
+  tunnel.sshProcess = child
+
+  child.on('spawn', () => {
+    tunnel.status = 'connected'
+    tunnel.startedAt = new Date()
+    tunnel.error = undefined
+    console.log(`[tunnel:${config.id}] Technique "${technique}" started (pid ${child.pid})`)
+    io.emit('tunnel:started', { id: config.id, status: 'connected', pid: child.pid, technique })
+    emitStatusUpdate()
+  })
+
+  child.stdout?.on('data', (data: Buffer) => {
+    tunnel.totalBytesOut += data.length
+  })
+
+  child.stderr?.on('data', (data: Buffer) => {
+    tunnel.totalBytesOut += data.length
+  })
+
+  child.on('error', (err) => {
+    // ENOENT = binary not found
+    if ((err as any).code === 'ENOENT') {
+      tunnel.status = 'error'
+      tunnel.error = `Binary "${binary}" not found. Install ${technique} first.`
+    } else {
+      tunnel.status = 'error'
+      tunnel.error = err.message
+    }
+    console.error(`[tunnel:${config.id}] Technique "${technique}" error:`, tunnel.error)
+    io.emit('tunnel:error', { id: config.id, error: tunnel.error })
+    emitStatusUpdate()
+  })
+
+  child.on('close', (code, signal) => {
+    if (tunnel.status !== 'disconnecting') {
+      tunnel.status = 'disconnected'
+      tunnel.error = `Process exited with code ${code}${signal ? ` (signal ${signal})` : ''}`
+      console.log(`[tunnel:${config.id}] Technique "${technique}" exited (code ${code})`)
+      io.emit('tunnel:stopped', { id: config.id, exitCode: code, signal })
+    }
+    emitStatusUpdate()
   })
 }
 
@@ -583,8 +683,27 @@ function stopTunnel(id: string): boolean {
     tunnel.localServer = null
   }
 
-  // Kill native SSH process
-  if (tunnel.sshProcess) {
+  // Kill technique binary process
+  if (tunnel.sshProcess && tunnel.config.technique) {
+    try {
+      // Kill process group for techniques that spawn children
+      try { process.kill(-tunnel.sshProcess.pid!, 'SIGTERM') } catch {
+        try { tunnel.sshProcess.kill('SIGTERM') } catch {}
+      }
+    } catch {}
+    // Force kill after 3 seconds
+    setTimeout(() => {
+      try {
+        if (tunnel.sshProcess && tunnel.sshProcess.exitCode === null) {
+          tunnel.sshProcess.kill('SIGKILL')
+        }
+      } catch {}
+    }, 3000)
+    tunnel.sshProcess = null
+  }
+
+  // Kill native SSH process (for deployer)
+  if (tunnel.sshProcess && !tunnel.config.technique) {
     try { tunnel.sshProcess.kill('SIGTERM') } catch {}
     tunnel.sshProcess = null
   }
@@ -632,7 +751,7 @@ io.on('connection', (socket) => {
 
   // Start a tunnel
   socket.on('tunnel:start', (config: TunnelConfig) => {
-    console.log(`[socket] tunnel:start request for ${config.id} (${config.type})`)
+    console.log(`[socket] tunnel:start request for ${config.id} (${config.type})${config.technique ? ` [technique: ${config.technique}]` : ''}`)
 
     // Validate config
     if (!config.id || !config.sshHost || !config.sshUser) {
@@ -651,6 +770,34 @@ io.on('connection', (socket) => {
       return
     }
 
+    // Technique mode: requires command
+    if (config.technique) {
+      if (!config.command) {
+        socket.emit('tunnel:error', {
+          id: config.id,
+          error: 'Technique requires a command',
+        })
+        return
+      }
+
+      const tunnel: ActiveTunnel = {
+        config,
+        status: 'connecting',
+        sshClient: null,
+        sshProcess: null,
+        localServer: null,
+        connections: 0,
+        totalBytesIn: 0,
+        totalBytesOut: 0,
+        startedAt: null,
+      }
+
+      tunnels.set(config.id, tunnel)
+      startTechniqueTunnel(tunnel)
+      return
+    }
+
+    // Regular tunnel mode
     if (config.type === 'local' && (!config.remotePort || !config.remoteBindAddr)) {
       socket.emit('tunnel:error', {
         id: config.id,
@@ -769,4 +916,5 @@ httpServer.listen(PORT, () => {
   console.log(`[tunnel-service] SSH Tunnel Management Service running on port ${PORT}`)
   console.log(`[tunnel-service] Health endpoint: /health`)
   console.log(`[tunnel-service] WebSocket endpoint: /socket.io`)
+  console.log(`[tunnel-service] Technique support: ${Object.keys(TECHNIQUE_BINARIES).join(', ')}`)
 })

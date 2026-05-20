@@ -12,6 +12,8 @@ model Tunnel {
   name           String
   type           String   // "local" | "remote" | "dynamic"
   status         String   @default("stopped") // "stopped" | "starting" | "active" | "error"
+  technique      String?  // "chisel" | "ligolo" | "dns" | "icmp" | "wstunnel" | "frp" | "quic" | "proxyjump"
+  command        String?  // raw command for technique execution
   
   // SSH Connection
   sshHost        String
